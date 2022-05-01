@@ -1,4 +1,4 @@
-import docx, random
+import docx
 import time
 from docx.enum.text import WD_BREAK
 from docx.shared import Pt
@@ -26,37 +26,47 @@ style = mydoc.styles['Normal']
 style.font.name = 'Times New Roman'
 style.font.size = Pt(12)
 
-used = []
-
 with open('wordlist.txt', 'r') as f:
     wordlist = f.readlines()
-    bar = IncrementalBar('Countdown', max=70)
-    errorword = 0
-    for i in range(1, 71):
-        word = random.choice(wordlist)
-        while word in used:
-            word = random.choice(wordlist)
+    bar = IncrementalBar('Process', max=70)
+    success_word_counter: int = 1
+    all_word_counter = 0
+    while True:
+        try:
+            word = wordlist[all_word_counter]
+            word = word.replace("\n", "")
+            driver.get(URL_TEMPLATE + word)
+        except:
+            print("No more words")
+            break
 
-        used.append(word)
-        word = word.replace("\n", "")
-        driver.get(URL_TEMPLATE + word)
         try:
             word_def = driver.find_element(By.XPATH, value="//div[@class='def ddef_d db']")
             current_par = mydoc.add_paragraph()
-            bold_word = current_par.add_run(str(i) + "." + word)
+            bold_word = current_par.add_run(str(success_word_counter) + "." + word)
             bold_word.bold = True
             italic_def = current_par.add_run(' - ' + word_def.text).add_break(WD_BREAK.LINE)
+            success_word_counter += 1
+            bar.next()
+        except:
+            print('\n Error. No such word: ' + word)
+            all_word_counter += 1
+            continue
+
+        try:
             example = driver.find_element(By.XPATH, value="//div[@class='examp dexamp']")
             italic_example = current_par.add_run(example.text)
             italic_example.italic = True
-        except Exception as e:
-            errorword += 1
-            print('Error. Word: ' + word)
-        mydoc.save('dic.docx')
-        bar.next()
-        time.sleep(1)
-bar.finish()
-driver.close()
+        except:
+            print('\n Error. No example for word: ' + word)
 
-print("Words with errors: ", errorword)
+        all_word_counter += 1
+        mydoc.save('dic.docx')
+        time.sleep(1)
+        if success_word_counter == 70:
+            break
+            
+bar.finish()
+driver.quit()
+
 print("Check the docx file for errors!!!")
